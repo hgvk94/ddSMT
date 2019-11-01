@@ -783,6 +783,8 @@ class SMTParser:
             tokens.append(self.term.parse_action(self.__term()))
         elif self.la == SMTParser.CHECKSAT:
             self.__scan()
+            while self.la and self.la != SMTParser.RPAR:
+                tokens.append(self.term.parse_action(self.__term()))
         elif self.la == SMTParser.GETASSERT:
             self.__scan()
         elif self.la == SMTParser.GETPROOF:

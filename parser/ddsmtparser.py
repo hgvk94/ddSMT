@@ -972,6 +972,12 @@ class SMTCmdNode:
             assert (len(self.children) == 1)
             self.children[0].dump(outfile)
             outfile.write(")\n")
+        elif self.kind == KIND_CHECKSAT:
+            outfile.write("({} ".format(self.kind))
+            for i in range(len(self.children)):
+                child = self.children[i]
+                child.dump(outfile)
+            outfile.write(")\n")
         elif self.kind == KIND_GETVALUE:
             outfile.write("({} (".format(self.kind))
             for i in range(len(self.children)):
