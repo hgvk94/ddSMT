@@ -78,6 +78,7 @@ KIND_TOR       = "to_real"
 
 KIND_CONC      = "concat"
 KIND_EXTR      = "extract"
+KIND_BIT2BOOL  = "bit2bool"
 KIND_REP       = "repeat"
 KIND_ROL       = "rotate_left"
 KIND_ROR       = "rotate_right"
@@ -203,6 +204,7 @@ g_fun_kinds   = \
         KIND_DIV,
         KIND_EQ,
         KIND_EXTR,
+        KIND_BIT2BOOL,
         KIND_GE,
         KIND_GT,
         KIND_IMPL,
@@ -1445,7 +1447,8 @@ class SMTFormula:
                         "function '{!s}' undeclared".format(c))
         # number of args check
         if ((len(children) != 1 and
-                 kind in (KIND_ABS, KIND_BVNEG, KIND_BVNOT, KIND_EXTR, KIND_ISI,
+                 kind in (KIND_ABS, KIND_BVNEG, KIND_BVNOT, KIND_EXTR,
+                          KIND_BIT2BOOL, KIND_ISI,
                           KIND_NOT, KIND_NEG,   KIND_TOI,   KIND_TOR,  KIND_REP,
                           KIND_ROL, KIND_ROR,   KIND_SEXT,  KIND_ZEXT,
                           KIND_STR_LEN)) or
@@ -1470,7 +1473,7 @@ class SMTFormula:
                 raise DDSMTParseCheckException (
                     "'{!s}' expects exactly two indices, {} given" \
                     "".format(fun.name, len(fun.indices)))
-            elif kind in (KIND_REP, KIND_ROL, KIND_ROR, KIND_SEXT, KIND_ZEXT) \
+            elif kind in (KIND_REP, KIND_ROL, KIND_ROR, KIND_SEXT, KIND_ZEXT, KIND_BIT2BOOL) \
                  and len(fun.indices) != 1:
                 raise DDSMTParseCheckException (
                     "'{!s}' expects exactly one index, {} given" \
@@ -1506,7 +1509,7 @@ class SMTFormula:
                     "".format(fun))
         # args BV sort check
         elif kind in (KIND_CONC, KIND_EXTR, KIND_REP,   KIND_ROL,  KIND_ROR,
-                      KIND_SEXT, KIND_ZEXT, KIND_BVNEG, KIND_BVNOT):
+                      KIND_SEXT, KIND_ZEXT, KIND_BVNEG, KIND_BVNOT, KIND_BIT2BOOL):
             for c in children:
                 if not c.sort.is_bv_sort:
                     raise DDSMTParseCheckException (
@@ -1623,6 +1626,8 @@ class SMTFormula:
                        children[0].sort.bw + children[1].sort.bw)
         elif kind == KIND_EXTR:
             return self.bvSortNode(fun.indices[0] - fun.indices[1] + 1)
+        elif kind == KIND_BIT2BOOL:
+            return self.sortNode("Bool");
         elif kind == KIND_REP:
             return self.bvSortNode(fun.indices[0] * children[0].sort.bw)
         elif kind in (KIND_SEXT, KIND_ZEXT):
