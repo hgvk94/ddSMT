@@ -1459,7 +1459,7 @@ class SMTFormula:
                           KIND_BVSHL,  KIND_BVSLE,  KIND_BVSLT,  KIND_BVSMOD,
                           KIND_BVSREM, KIND_BVSUB,  KIND_BVUGE,  KIND_BVUGT,
                           KIND_BVUDIV, KIND_BVULE,  KIND_BVULT,  KIND_BVUREM,
-                          KIND_BVXNOR, KIND_BVXOR,  KIND_CONC,   KIND_MOD,
+                          KIND_BVXNOR, KIND_CONC,   KIND_MOD,
                           KIND_SELECT, KIND_STR_SUFFIXOF, KIND_STR_PREFIXOF)) or
             (len(children) != 3 and
                 kind in (KIND_ITE, KIND_STR_SUBSTR, KIND_STR_REPLACE,
@@ -1509,7 +1509,7 @@ class SMTFormula:
                     "".format(fun))
         # args BV sort check
         elif kind in (KIND_CONC, KIND_EXTR, KIND_REP,   KIND_ROL,  KIND_ROR,
-                      KIND_SEXT, KIND_ZEXT, KIND_BVNEG, KIND_BVNOT, KIND_BIT2BOOL):
+                      KIND_SEXT, KIND_ZEXT, KIND_BVNEG, KIND_BVNOT, KIND_BIT2BOOL, KIND_BVXOR):
             for c in children:
                 if not c.sort.is_bv_sort:
                     raise DDSMTParseCheckException (
