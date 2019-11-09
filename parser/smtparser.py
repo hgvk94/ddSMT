@@ -139,6 +139,11 @@ class SMTParser:
     GETINFO   = "get-info"
     EXIT      = "exit"
 
+    DECLREL   = "declare-rel"
+    DECLVAR   = "declare-var"
+    RULE      = "rule"
+    QUERY     = "query"
+
     PLACEHOLDER = "@::@"
 
     def __init__ (self):
@@ -810,6 +815,24 @@ class SMTParser:
             tokens.append(self.info_flag.parse_action(self.__info_flag()))
         elif self.la == SMTParser.EXIT:
             self.__scan()
+        elif self.la == SMTParser.DECLREL:
+            self.__scan()
+            tokens.append(self.symbol.parse_action(self.__symbol()))
+            self.__check_lpar()
+            tokens.append([])
+            while self.la and self.la != SMTParser.RPAR:
+                tokens[-1].append(self.sort.parse_action(self.__sort()))
+            self.__check_rpar()
+        elif self.la == SMTParser.DECLVAR:
+            self.__scan()
+            tokens.append(self.symbol.parse_action(self.__symbol()))
+            tokens.append(self.sort.parse_action(self.__sort()))
+        elif self.la == SMTParser.RULE:
+            self.__scan()
+            tokens.append(self.term.parse_action(self.__term()))
+        elif self.la == SMTParser.QUERY:
+            self.__scan()
+            tokens.append(self.term.parse_action(self.__term()))
         else:
             raise SMTParseException (
                     "unknown command '{}'".format(self.la), self)

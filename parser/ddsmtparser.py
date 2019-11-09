@@ -147,6 +147,10 @@ KIND_SETLOGIC  = "set-logic"
 KIND_SETINFO   = "set-info"
 KIND_SETOPT    = "set-option"
 
+KIND_DECLVAR = "declare-var"
+KIND_DECLREL = "declare-rel"
+KIND_RULE    = "rule"
+KIND_QUERY   = "query"
 
 g_const_kinds = \
     [
@@ -252,7 +256,11 @@ g_cmd_kinds   = \
         KIND_POP,
         KIND_SETLOGIC,
         KIND_SETINFO,
-        KIND_SETOPT
+        KIND_SETOPT,
+        KIND_DECLVAR,
+        KIND_DECLREL,
+        KIND_RULE,
+        KIND_QUERY,
     ]
 
 
@@ -884,7 +892,7 @@ class SMTCmdNode:
     def __str__ (self):
         if self.is_subst():
             return ""
-        if self.kind == KIND_DECLCONST:
+        if self.kind == KIND_DECLCONST or self.kind == KIND_DECLVAR:
             assert (len(self.children) == 1)
             assert (isinstance(self.children[0], SMTFunNode))
             fun = self.children[0]
@@ -902,6 +910,15 @@ class SMTCmdNode:
                     " ".join([str(s) for s in fun.sorts]) \
                             if len(fun.sorts) > 0 else "",
                     str(fun.sort))
+        elif self.kind == KIND_DECLREL:
+            assert (len(self.children) == 1)
+            assert (isinstance(self.children[0], SMTFunNode))
+            fun = self.children[0]
+            return "({} {} ({}))".format(
+                    self.kind,
+                    fun.name,
+                    " ".join([str(s) for s in fun.sorts]) \
+                            if len(fun.sorts) > 0 else "")
         elif self.kind == KIND_DEFFUN:
             assert (len(self.children) == 3)
             assert (isinstance(self.children[0], SMTFunNode))
@@ -930,7 +947,8 @@ class SMTCmdNode:
         if self.is_subst():
             return
         outfile.write(lead)
-        if self.kind == KIND_DECLCONST:
+        if self.kind == KIND_DECLCONST or \
+           self.kind == KIND_DECLVAR:
             assert (len(self.children) == 1)
             assert (isinstance(self.children[0], SMTFunNode))
             fun = self.children[0]
@@ -948,6 +966,15 @@ class SMTCmdNode:
                     " ".join([str(s) for s in fun.sorts]) \
                             if len(fun.sorts) > 0 else "",
                     str(fun.sort)))
+        elif self.kind == KIND_DECLREL:
+            assert (len(self.children) == 1)
+            assert (isinstance(self.children[0], SMTFunNode))
+            fun = self.children[0]
+            outfile.write("({} {} ({}))\n".format(
+                    self.kind,
+                    fun.name,
+                    " ".join([str(s) for s in fun.sorts]) \
+                    if len(fun.sorts) > 0 else ""))
         elif self.kind == KIND_DEFFUN:
             assert (len(self.children) == 3)
             assert (isinstance(self.children[0], SMTFunNode))
@@ -969,7 +996,9 @@ class SMTCmdNode:
             sort = self.children[0]
             outfile.write("({} {} {})\n".format(
                     self.kind, sort.name, sort.nparams))
-        elif self.kind == KIND_ASSERT:
+        elif self.kind == KIND_ASSERT or \
+             self.kind == KIND_RULE or \
+             self.kind == KIND_QUERY:
             outfile.write("({}".format(self.kind))
             assert (len(self.children) == 1)
             self.children[0].dump(outfile)
@@ -1018,6 +1047,12 @@ class SMTCmdNode:
 
     def is_setlogic (self):
         return self.kind == KIND_SETLOGIC
+
+    def is_rule (self):
+        return self.kind == KIND_RULE
+
+    def is_query (self):
+        return self.kind == KIND_QUERY
 
     def subst (self, substitution):
         SMTCmdNode.g_smtformula.subst(self, substitution)
@@ -1743,6 +1778,17 @@ class SMTFormula:
         self.scopes.declfun_cmds[name] = SMTCmdNode (KIND_DECLFUN, [fun])
         return fun
 
+    def add_fresh_declvarCmdNode (self, sort):
+        self.scopes.declfun_id += 1
+        name = "_substvar_{}_".format(self.scopes.declfun_id)
+        while self.find_fun (name, scope=self.scopes, find_nested=False):
+            self.scopes.declfun_id = int(name[10:-1]) + 1
+            name = "_substvar_{}_".format(self.scopes.declfun_id)
+        fun = self.add_fun (name, sort, [], [], [])
+        self.scopes.declfun_cmds[name] = SMTCmdNode (KIND_DECLVAR, [fun])
+        return fun
+
+
     def __assert_varb (self, var_bindings):
         for varb in var_bindings:
             assert (varb.scope.kind == KIND_LSCOPE)
@@ -2045,6 +2091,17 @@ class DDSMTParser (SMTParser):
                          self)
             fun = sf.funNode (t[1], t[2], [], [], [], sf.cur_scope)
             return sf.cmdNode (KIND_DECLCONST, [fun])
+        elif kind == KIND_DECLVAR:
+            assert (len(t) == 3)
+            fun = sf.find_fun(t[1], t[2], find_nested=False)
+            if fun:
+                (line, col) = self.get_pos()
+                raise DDSMTParseException (
+                         "previous declaration of constant/function '{!s}'"\
+                         "was here".format(fun),
+                         self)
+            fun = sf.funNode (t[1], t[2], [], [], [], sf.cur_scope)
+            return sf.cmdNode (KIND_DECLVAR, [fun])
         elif kind == KIND_DECLFUN:
             assert (len(t) == 4)
             fun = sf.find_fun(t[1], t[3], find_nested=False)
@@ -2056,6 +2113,19 @@ class DDSMTParser (SMTParser):
                          self)
             fun = sf.funNode (t[1], t[3], t[2][0:], [], [], sf.cur_scope)
             return sf.cmdNode (KIND_DECLFUN, [fun])
+        elif kind == KIND_DECLREL:
+            assert (len(t) == 3)
+            t.append(self.smtformula.find_sort('Bool'))
+            fun = sf.find_fun(t[1], t[3], find_nested=False)
+            if fun:
+                (line, col) = self.get_pos()
+                raise DDSMTParseException (
+                         "previous declaration of function '{!s}'"\
+                         "was here".format(fun),
+                         self)
+            fun = sf.funNode (t[1], t[3], t[2][0:], [], [], sf.cur_scope)
+            return sf.cmdNode (KIND_DECLREL, [fun])
+ 
         elif kind == KIND_DEFFUN:
             assert (len(t) == 5)
             sorts = [to.sort for to in t[2]]
