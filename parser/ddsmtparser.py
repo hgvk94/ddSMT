@@ -1728,10 +1728,14 @@ class SMTFormula:
         for attrib in attributes:
             attrib = attrib.split()
             if attrib[0] == ":named":
-                if len(attrib) != 2:
+                if len(attrib) < 2:
                     raise DDSMTParseCheckException (
                             "missing attribute value for ':named'")
-                name = attrib[1]
+                if len(attrib) == 2:
+                    name = attrib[1]
+                else:
+                    name = ' '.join(attrib[1:])
+
                 fun = self.find_fun (name, None, self.cur_scope, False)
                 if fun:
                     raise DDSMTParseCheckException (
