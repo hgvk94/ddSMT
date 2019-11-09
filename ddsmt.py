@@ -493,6 +493,9 @@ class PassConstZero:
 
 
 class PassFreshVar:
+    def __init__(self, use_var=False):
+        self._use_var = use_var
+
     def filter(self, x):
         return not x.is_const() \
                and x.children \
@@ -500,10 +503,16 @@ class PassFreshVar:
                and not g_smtformula.is_substvar(x)
 
     def subst(self, x):
-        return g_smtformula.add_fresh_declfunCmdNode(x.sort)
+        if self._use_var:
+            return g_smtformula.add_fresh_declvarCmdNode(x.sort)
+        else:
+            return g_smtformula.add_fresh_declfunCmdNode(x.sort)
 
     def msg(self):
-        return "substitute terms with fresh variables"
+        if self._use_var:
+            return "substitute terms with fresh quantified variables"
+        else:
+            return "substitute terms with fresh variables"
 
 class PassLetPullBody:
     def filter(self, x):
@@ -642,7 +651,7 @@ def ddsmt_main ():
            nsubst = _substitute_cmds (g_args.bfs, g_args.randomized)
         else:
            nsubst = _substitute_cmds (g_args.bfs, g_args.randomized,
-                                      lambda x: x.is_assert())
+                                      lambda x: x.is_assert() or x.is_rule())
         if nsubst:
            succeeded = "cmds"
            nsubst_round += nsubst
@@ -652,8 +661,11 @@ def ddsmt_main ():
 
         cmds = [_filter_cmds (lambda x: x.is_definefun(), g_args.bfs),
                 _filter_cmds (lambda x: x.is_assert(), g_args.bfs),
-                _filter_cmds (lambda x: x.is_getvalue(), g_args.bfs)]
-        cmds_msgs = ["'define-fun'", "'assert'", "'get-value'"]
+                _filter_cmds (lambda x: x.is_getvalue(), g_args.bfs),
+                _filter_cmds (lambda x: x.is_rule(), g_args.bfs),
+                _filter_cmds (lambda x: x.is_query(), g_args.bfs)]
+        cmds_msgs = ["'define-fun'", "'assert'", "'get-value'", \
+                     "'rule'", "'query'"]
 
         for i in range(0, len(cmds)):
             if cmds[i]:
@@ -666,11 +678,30 @@ def ddsmt_main ():
 
                 # Create passes in each iteration, since a pass may initialize
                 # data structures based on the current formula
-                passes = [PassConstZero(), PassFreshVar(), PassLetPullBody(),
-                          PassElimVarBind(cmds[i]),
-                          PassConstBool('true'), PassConstBool('false'),
-                          PassPullChild(0), PassPullChild(1), PassPullChild(2),
-                          PassInlineDefFun(), PassCompactAndOr()]
+                if cmds[i][0].is_rule() or cmds[i][0].is_query():
+                    passes = [PassConstZero(),
+                              PassFreshVar(use_var=True),
+                              PassLetPullBody(),
+                              PassElimVarBind(cmds[i]),
+                              PassConstBool('true'),
+                              PassConstBool('false'),
+                              PassPullChild(0),
+                              PassPullChild(1),
+                              PassPullChild(2),
+                              PassInlineDefFun(),
+                              PassCompactAndOr()]
+                else:
+                    passes = [PassConstZero(),
+                              PassFreshVar(),
+                              PassLetPullBody(),
+                              PassElimVarBind(cmds[i]),
+                              PassConstBool('true'),
+                              PassConstBool('false'),
+                              PassPullChild(0),
+                              PassPullChild(1),
+                              PassPullChild(2),
+                              PassInlineDefFun(),
+                              PassCompactAndOr()]
 
 
                 pass_num = 0
