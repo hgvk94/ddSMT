@@ -123,8 +123,10 @@ KIND_STR_INDEXOF  = "str.indexof"
 KIND_STR_PREFIXOF = "str.prefixof"
 KIND_STR_SUFFIXOF = "str.suffixof"
 
-KIND_SELECT    = "select"
-KIND_STORE     = "store"
+KIND_SELECT      = "select"
+KIND_STORE       = "store"
+# constant array
+KIND_ARRAY_CONST = "const"
 
 KIND_ASSERT    = "assert"
 KIND_CHECKSAT  = "check-sat"
@@ -232,7 +234,8 @@ g_fun_kinds   = \
         KIND_TOI,
         KIND_TOR,
         KIND_XOR,
-        KIND_ZEXT
+        KIND_ZEXT,
+        KIND_ARRAY_CONST,
     ]
 
 g_cmd_kinds   = \
