@@ -559,7 +559,7 @@ class SMTFunAppNode (SMTNode):
     __slots__ = ["fun"]
 
     def __init__ (self, fun, kind, sort, children):
-        assert (isinstance(fun, SMTFunNode))
+        assert (isinstance(fun, SMTFunNode) or isinstance(fun, SMTAnFunNode))
         assert (len(children) >= 1)
         super().__init__(kind, sort, children)
         self.fun = fun
@@ -1693,6 +1693,19 @@ class SMTFormula:
             return children[0].sort
         return fun.sort
 
+
+    def anFunAppNode (self, fun, children):
+        global g_fun_kinds
+        kind = fun.fun.kind
+        name = fun.fun.name if not fun.fun.name[0] == '(' else fun.fun.name.split()[1]
+        if name in g_fun_kinds:
+            if name == '-' and len(children) == 1:
+                kind = KIND_NEG
+            else:
+                kind = name
+        sort = fun.sort
+        return SMTFunAppNode (fun, kind, sort, children)
+
     def funAppNode (self, fun, children):
         global g_fun_kinds
         kind = fun.kind
@@ -2054,6 +2067,8 @@ class DDSMTParser (SMTParser):
             elif t[0] == SMTParser.EXCL:
                 assert (len(t) == 3)
                 return sf.annNode (t[2], t[1].sort, [t[1]])
+            elif isinstance(t[0], SMTAnFunNode):
+                return sf.anFunAppNode(t[0], t[1]) 
             else:
                 assert (isinstance(t[0], SMTFunNode))
                 return sf.funAppNode (t[0], t[1])
