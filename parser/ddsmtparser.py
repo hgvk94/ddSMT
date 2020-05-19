@@ -1497,7 +1497,7 @@ class SMTFormula:
                           KIND_BVSHL,  KIND_BVSLE,  KIND_BVSLT,  KIND_BVSMOD,
                           KIND_BVSREM, KIND_BVSUB,  KIND_BVUGE,  KIND_BVUGT,
                           KIND_BVUDIV, KIND_BVULE,  KIND_BVULT,  KIND_BVUREM,
-                          KIND_BVXNOR, KIND_CONC,   KIND_MOD,
+                          KIND_BVXNOR,   KIND_MOD,
                           KIND_SELECT, KIND_STR_SUFFIXOF, KIND_STR_PREFIXOF)) or
             (len(children) != 3 and
                 kind in (KIND_ITE, KIND_STR_SUBSTR, KIND_STR_REPLACE,
@@ -1660,8 +1660,8 @@ class SMTFormula:
             return self.sortNode("String")
         # sort BV sort != children sort
         elif kind == KIND_CONC:
-            return self.bvSortNode(
-                       children[0].sort.bw + children[1].sort.bw)
+            s = sum(f.sort.bw for f in children)
+            return self.bvSortNode(s)
         elif kind == KIND_EXTR:
             return self.bvSortNode(fun.indices[0] - fun.indices[1] + 1)
         elif kind == KIND_BIT2BOOL:
