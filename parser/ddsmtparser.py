@@ -33,7 +33,7 @@ KIND_FESCOPE   = "<forall/exists scope>"
 KIND_LSCOPE    = "<let scope>"
 
 KIND_SORT      = "<sort>"
-KIND_PSORT     = "<template sort>"
+KIND_PSORT     = "<param sort>"
 KIND_ARRSORT   = "<array sort>"
 KIND_BVSORT    = "<bv sort>"
 KIND_SORTEXPR  = "<sort expression>"
