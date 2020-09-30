@@ -33,6 +33,7 @@ KIND_FESCOPE   = "<forall/exists scope>"
 KIND_LSCOPE    = "<let scope>"
 
 KIND_SORT      = "<sort>"
+KIND_PSORT     = "<template sort>"
 KIND_ARRSORT   = "<array sort>"
 KIND_BVSORT    = "<bv sort>"
 KIND_SORTEXPR  = "<sort expression>"
@@ -133,6 +134,7 @@ KIND_CHECKSAT  = "check-sat"
 KIND_DECLCONST = "declare-const"
 KIND_DECLFUN   = "declare-fun"
 KIND_DEFFUN    = "define-fun"
+KIND_DECLDT    = "declare-datatypes"
 KIND_DECLSORT  = "declare-sort"
 KIND_DEFSORT   = "define-sort"
 KIND_GETASSERT = "get-assertions"
@@ -941,6 +943,8 @@ class SMTCmdNode:
             sort = self.children[0]
             return "({} {} {})".format(
                     self.kind, sort.name, sort.nparams)
+        elif self.kind == KIND_DECLDT:
+            assert (false)
         elif self.kind == KIND_DEFSORT:
             assert (len(self.children) == 3)
             assert (isinstance(self.children[0], SMTSortNode))
@@ -1885,6 +1889,7 @@ class DDSMTParser (SMTParser):
 
             self.sort.set_parse_action (self.__sort2SMTNode)
             self.sort_expr.set_parse_action (self.__sortExpr2SMTNode)
+            self.parsort.set_parse_action (self.__parsort2SMTNode)
 
             self.attr_value.set_parse_action (lambda t:
                     "({})".format(" ".join([str(to) for to in t[1]])) \
@@ -1915,6 +1920,15 @@ class DDSMTParser (SMTParser):
 
         except DDSMTParseCheckException as e:
             raise DDSMTParseException (e.msg, e.parser)
+
+    def __parsort2SMTNode (self, t):
+        sf = self.smtformula
+        assert (t[0] == SMTParser.PARSORT)
+        assert (len(t) == 3)
+        s_ident = t[1]
+        num = t[2]
+        #SMTScopeNode() is the scope at which the predefined scopes have been defined
+        return sf.sortNode(s_ident, num, scope = SMTScopeNode(), new = True)
 
     def __sort2SMTNode (self, t):
         sf = self.smtformula
@@ -2158,5 +2172,7 @@ class DDSMTParser (SMTParser):
         elif kind == KIND_GETVALUE:
             assert (len(t) == 2)
             return sf.cmdNode (KIND_GETVALUE, t[1])
+        elif kind == KIND_DECLDT:
+            assert (false)
         else:
             return sf.cmdNode (kind, children = t[1:])
