@@ -82,6 +82,7 @@ class SMTParser:
     RPAR = ')'
 
     IDXED  = "(_"
+    PARSORT = "param"
 
     BSLASH  = '\\'
     COMMA   = ','
@@ -125,6 +126,7 @@ class SMTParser:
     DEFSORT   = "define-sort"
     DECLCONST = "declare-const"
     DECLFUN   = "declare-fun"
+    DECLDT    = "declare-datatypes"
     DEFFUN    = "define-fun"
     PUSH      = "push"
     POP       = "pop"
@@ -166,6 +168,11 @@ class SMTParser:
         self.s_expr          = SMTParseElement()
         self.ident           = SMTParseElement()
         self.sort            = SMTParseElement()
+        self.parsort         = SMTParseElement()
+        self.constructor     = SMTParseElement()
+        self.dtparam         = SMTParseElement()
+        self.selector        = SMTParseElement()
+        self.datatype        = SMTParseElement()
         self.sort_expr       = SMTParseElement()
         self.attr_value      = SMTParseElement()
         self.attribute       = SMTParseElement()
@@ -439,6 +446,55 @@ class SMTParser:
             raise SMTParseException ("identifier expected", self)
         return tokens
 
+    def __dtparam(self):
+        tokens = SMTParseResult()
+        p = self.symbol.parse_action(self.__symbol())
+        if (p != "par"):
+            raise SMTParseException("par keyword expected", self)
+        self.__check_lpar()
+        while self.la != SMTParser.RPAR:
+            tokens.append(self.symbol.parse_action(self.__symbol()))
+        self.__check_rpar()
+        return tokens
+
+    def __selector(self):
+        tokens = SMTParseResult()
+        self.__check_lpar("selector expected")
+        #parse selector name
+        tokens.append(self.symbol.parse_action(self.__symbol()))
+        while self.la != SMTParser.RPAR:
+            tokens.append(self.sort.parse_action(self.__sort()))
+        self.__check_rpar()
+        return tokens
+
+    def __constructor(self):
+        tokens = SMTParseResult()
+        self.__check_lpar("list of constructors expected")
+        while self.la != SMTParser.RPAR:
+            # default constructor
+            if self.__first_of_symbol(self.la[0]):
+                tokens.append(self.symbol.parse_action(self.__symbol()))
+            elif self.la == SMTParser.LPAR:
+                self.__scan()
+                cons = self.symbol.parse_action(self.__symbol())
+                args = []
+                while self.la != SMTParser.RPAR:
+                    args.append(self.selector.parse_action(self.__selector()))
+                tokens.append(SMTParser.LPAR)
+                tokens.append([cons, args])
+                self.__check_rpar()
+        self.__check_rpar()
+        return tokens
+
+    def __datatype (self):
+        tokens = SMTParseResult()
+        self.__check_lpar("list of constructors expected")
+        while self.la and self.la != SMTParser.RPAR:
+            tokens.append(self.dtparam.parse_action(self.__dtparam()))
+            tokens.append(self.constructor.parse_action(self.__constructor()))
+            self.__check_rpar()
+        return tokens
+
     def __sort (self):
         tokens = SMTParseResult()
         if self.__first_of_symbol(self.la[0]) or self.la == SMTParser.IDXED:
@@ -454,6 +510,20 @@ class SMTParser:
             if not tokens[-1]:
                 raise SMTParseException ("sort expected", self)
             self.__check_rpar()
+        return tokens
+
+    # parses sort and the number of parameters for it
+    def __parsort (self):
+        tokens = SMTParseResult()
+        self.__check_lpar("sort expected")
+        while self.la and self.la != SMTParser.RPAR:
+            tokens.extend(
+                [SMTParser.PARSORT,  # needed for distinction
+                 self.ident.parse_action(self.__ident()),
+                 int(self.la)])
+            #parse the integer
+            self.__scan()
+        self.__check_rpar()
         return tokens
 
     def __sort_expr (self):
@@ -777,6 +847,15 @@ class SMTParser:
             tokens.extend(
                     [self.sort.parse_action(self.__sort()),
                      self.term.parse_action(self.__term())])
+        elif self.la == SMTParser.DECLDT:
+            self.__scan()
+            self.__check_lpar()
+            while self.la and self.la != SMTParser.RPAR:
+                tokens.append(self.parsort.parse_action(self.__parsort()))
+            self.__check_rpar()
+            self.__check_lpar()
+            while self.la and self.la != SMTParser.RPAR:
+                tokens.extend(self.datatype.parse_action(self.__datatype()))
         elif self.la == SMTParser.PUSH:
             self.__scan()
             tokens.append(self.numeral.parse_action(self.__numeral()))
