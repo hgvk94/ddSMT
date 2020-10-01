@@ -254,6 +254,7 @@ g_cmd_kinds   = \
         KIND_GETPROOF,
         KIND_GETUCORE,
         KIND_GETVALUE,
+        KIND_DECLDT,
         KIND_GETOPT,
         KIND_GETINFO,
         KIND_EXIT,
@@ -944,7 +945,7 @@ class SMTCmdNode:
             return "({} {} {})".format(
                     self.kind, sort.name, sort.nparams)
         elif self.kind == KIND_DECLDT:
-            assert (false)
+            assert(false)
         elif self.kind == KIND_DEFSORT:
             assert (len(self.children) == 3)
             assert (isinstance(self.children[0], SMTSortNode))
@@ -1928,7 +1929,7 @@ class DDSMTParser (SMTParser):
         s_ident = t[1]
         num = t[2]
         #SMTScopeNode() is the scope at which the predefined scopes have been defined
-        return sf.sortNode(s_ident, num, scope = SMTScopeNode(), new = True)
+        return sf.sortNode(s_ident[0], num, scope = sf.cur_scope, new = True)
 
     def __sort2SMTNode (self, t):
         sf = self.smtformula
@@ -2092,6 +2093,11 @@ class DDSMTParser (SMTParser):
         except DDSMTParseCheckException as e:
             raise DDSMTParseException (e.msg, self)
 
+    def __parse_sel(self, sel):
+        sel_name = sel[0]
+        sel_sort = sel[1]
+        return sel_name, sel_sort
+
     def __cmd2SMTCmdNode (self, t):
         sf = self.smtformula
         kind = t[0]
@@ -2161,7 +2167,7 @@ class DDSMTParser (SMTParser):
                          self)
             fun = sf.funNode (t[1], t[3], t[2][0:], [], [], sf.cur_scope)
             return sf.cmdNode (KIND_DECLREL, [fun])
- 
+
         elif kind == KIND_DEFFUN:
             assert (len(t) == 5)
             sorts = [to.sort for to in t[2]]
@@ -2173,6 +2179,26 @@ class DDSMTParser (SMTParser):
             assert (len(t) == 2)
             return sf.cmdNode (KIND_GETVALUE, t[1])
         elif kind == KIND_DECLDT:
-            assert (false)
+            #TODO: handle case when multiple datatypes are defined
+            #in this case, t[1] should be a list of sorts
+            new_type = t[1]
+            for sort in t[2:]:
+                par = sort[0]
+                #TODO: handle parameterized datatypes
+                assert (len(par) == 0)
+                cons = sort[1]
+                for con in cons:
+                    cons_name = con[0]
+                    if (len(con) == 1):
+                        sf.funNode(cons_name, new_type, [], [], [], sf.cur_scope)
+                        continue
+                    sels = con[1:][0]
+                    args = []
+                    for sel in sels:
+                        sel_name, sel_arg = self.__parse_sel(sel)
+                        args.append(sel_arg)
+                        sf.funNode(sel_name, sel_arg, [new_type], [], [], sf.cur_scope)
+                    sf.funNode(cons_name, new_type, args, [], [], sf.cur_scope)
+            return sf.cmdNode (KIND_DECLDT, children = t[1:])
         else:
             return sf.cmdNode (kind, children = t[1:])

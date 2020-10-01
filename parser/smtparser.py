@@ -462,8 +462,7 @@ class SMTParser:
         self.__check_lpar("selector expected")
         #parse selector name
         tokens.append(self.symbol.parse_action(self.__symbol()))
-        while self.la != SMTParser.RPAR:
-            tokens.append(self.sort.parse_action(self.__sort()))
+        tokens.append(self.sort.parse_action(self.__sort()))
         self.__check_rpar()
         return tokens
 
@@ -473,14 +472,13 @@ class SMTParser:
         while self.la != SMTParser.RPAR:
             # default constructor
             if self.__first_of_symbol(self.la[0]):
-                tokens.append(self.symbol.parse_action(self.__symbol()))
+                tokens.append([self.symbol.parse_action(self.__symbol())])
             elif self.la == SMTParser.LPAR:
                 self.__scan()
                 cons = self.symbol.parse_action(self.__symbol())
                 args = []
                 while self.la != SMTParser.RPAR:
                     args.append(self.selector.parse_action(self.__selector()))
-                tokens.append(SMTParser.LPAR)
                 tokens.append([cons, args])
                 self.__check_rpar()
         self.__check_rpar()
@@ -490,8 +488,10 @@ class SMTParser:
         tokens = SMTParseResult()
         self.__check_lpar("list of constructors expected")
         while self.la and self.la != SMTParser.RPAR:
-            tokens.append(self.dtparam.parse_action(self.__dtparam()))
-            tokens.append(self.constructor.parse_action(self.__constructor()))
+            cons = []
+            cons.append(self.dtparam.parse_action(self.__dtparam()))
+            cons.append(self.constructor.parse_action(self.__constructor()))
+            tokens.append(cons)
             self.__check_rpar()
         return tokens
 
@@ -516,13 +516,11 @@ class SMTParser:
     def __parsort (self):
         tokens = SMTParseResult()
         self.__check_lpar("sort expected")
-        while self.la and self.la != SMTParser.RPAR:
-            tokens.extend(
-                [SMTParser.PARSORT,  # needed for distinction
-                 self.ident.parse_action(self.__ident()),
-                 int(self.la)])
-            #parse the integer
-            self.__scan()
+        tokens.extend([SMTParser.PARSORT,  # needed for distinction
+                       self.ident.parse_action(self.__ident()),
+                       int(self.la)])
+        #parse the integer
+        self.__scan()
         self.__check_rpar()
         return tokens
 
@@ -856,6 +854,7 @@ class SMTParser:
             self.__check_lpar()
             while self.la and self.la != SMTParser.RPAR:
                 tokens.extend(self.datatype.parse_action(self.__datatype()))
+            self.__scan()
         elif self.la == SMTParser.PUSH:
             self.__scan()
             tokens.append(self.numeral.parse_action(self.__numeral()))
