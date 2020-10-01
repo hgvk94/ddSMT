@@ -945,7 +945,25 @@ class SMTCmdNode:
             return "({} {} {})".format(
                     self.kind, sort.name, sort.nparams)
         elif self.kind == KIND_DECLDT:
-            assert(false)
+            string = "({} (".format(self.kind)
+            for sort in self.children:
+                string = string + " " + str(sort[0]) + str(sort[1]) + ")" + ")"
+            string = string + ") ("
+            for sort in self.children:
+                string = string + "( par () ("
+                for cons in sort[2]:
+                    if (len(cons) == 1):
+                        string = string +  " " + cons[0] + " "
+                    else:
+                        string = string + " ( " + cons[0]
+                        for sel in cons[1:]:
+                            sel_name = str(sel[0])
+                            sel_sort = str(sel[1])
+                            string = string + " ("+ sel_name + " " + sel_sort + ") "
+                        string = string + " ) "
+                string = string + "))"
+            string = string + "))"
+            return string
         elif self.kind == KIND_DEFSORT:
             assert (len(self.children) == 3)
             assert (isinstance(self.children[0], SMTSortNode))
@@ -1017,6 +1035,26 @@ class SMTCmdNode:
                 child = self.children[i]
                 child.dump(outfile)
             outfile.write(")\n")
+        elif self.kind == KIND_DECLDT:
+            string = "({} (".format(self.kind)
+            for sort in self.children:
+                string = string + "(" + str(sort[0]) + " "+ str(sort[1]) + ")"
+            string = string + ") ("
+            for sort in self.children:
+                string = string + "( par () ("
+                for cons in sort[2]:
+                    if (len(cons) == 1):
+                        string = string +  " " + cons[0] + " "
+                    else:
+                        string = string + " ( " + cons[0]
+                        for sel in cons[1:]:
+                            sel_name = str(sel[0])
+                            sel_sort = str(sel[1])
+                            string = string + " ("+ sel_name + " " + sel_sort + ") "
+                        string = string + " ) "
+                string = string + "))"
+            string = string + "))"
+            outfile.write(string + "\n")
         elif self.kind == KIND_GETVALUE:
             outfile.write("({} (".format(self.kind))
             for i in range(len(self.children)):
@@ -2181,24 +2219,33 @@ class DDSMTParser (SMTParser):
         elif kind == KIND_DECLDT:
             #TODO: handle case when multiple datatypes are defined
             #in this case, t[1] should be a list of sorts
+            children = []
             new_type = t[1]
             for sort in t[2:]:
                 par = sort[0]
                 #TODO: handle parameterized datatypes
                 assert (len(par) == 0)
+                num_pars = len(par)
                 cons = sort[1]
+                dt = []
                 for con in cons:
+                    child = []
                     cons_name = con[0]
+                    child.append(cons_name)
                     if (len(con) == 1):
                         sf.funNode(cons_name, new_type, [], [], [], sf.cur_scope)
+                        dt.append(child)
                         continue
                     sels = con[1:][0]
                     args = []
                     for sel in sels:
                         sel_name, sel_arg = self.__parse_sel(sel)
                         args.append(sel_arg)
+                        child.append([sel_name, sel_arg])
                         sf.funNode(sel_name, sel_arg, [new_type], [], [], sf.cur_scope)
                     sf.funNode(cons_name, new_type, args, [], [], sf.cur_scope)
-            return sf.cmdNode (KIND_DECLDT, children = t[1:])
+                    dt.append(child)
+                children.append([new_type, num_pars, dt])
+            return sf.cmdNode (KIND_DECLDT, children)
         else:
             return sf.cmdNode (kind, children = t[1:])
